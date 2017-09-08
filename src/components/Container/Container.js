@@ -1,8 +1,9 @@
 import React, { Component } from 'react';
-import axios from 'axios'
+
+import helper from '../../utils/helpers';
 
 function Result(props) {
-  const result = props.result;
+  const info = props.info;
   return(
     <div className="card">
       <div className="card-header">
@@ -17,14 +18,27 @@ function Result(props) {
             </tr>
           </thead>
           <tbody>
-            {Object.keys(result.info||{}).map((keyName, keyIndex) => 
+            {Object.keys(info||{}).map((keyName, keyIndex) => 
               <tr key={keyName.toString()}>
                 <td>{keyName}</td>
-                <td>{(result.info[keyName] === null) ? 'null' : result.info[keyName] }</td>
+                <td>{(info[keyName] === null) ? 'null' : info[keyName] }</td>
               </tr>
             )}
           </tbody>
         </table>
+      </div>
+    </div>
+  )
+}
+
+function Notfound() {
+  return(
+    <div className="card">
+      <div className="card-header">
+        Student Info
+      </div>
+      <div className="card-body">
+        <p>Student not found!</p>
       </div>
     </div>
   )
@@ -38,64 +52,27 @@ class Container extends Component {
     this.state = {
       studentNumber: '',
       token: '',
-      result: {},
+      email: 'xx',
+      password: 'xx',
+      studentInfo: {},
       render: ''
     }
   }
 
   componentDidMount() {
-    this.authenticate();
+    helper.authenticate(this.state.email, this.state.password)
+    .then(function(data) {
+      this.setState({
+        token: data.response.token
+      })
+    }.bind(this));
   }
 
   _renderSubComp(){
       switch(this.state.render){
-        case 'result': return <Result result={this.state.result}/>
+        case 'result': return <Result info={this.state.studentInfo}/>
+        case 'notfound': return <Notfound />
       }
-  }
-
-  authenticate() {
-    var self = this;
-    var querystring = require('querystring');
-    var url = 'https://laravelapidev.tk/api/authenticate';
-    var cred = {
-      email: 'xx',
-      password: 'xx',
-      result: {}
-    };
-
-    axios.post(url, querystring.stringify(cred), {
-          headers: { 
-            "Accept": "application/prs.laravelapidev.v1+json",
-            "Content-Type": "application/x-www-form-urlencoded"
-          }
-        }).then(function(response) {
-          self.setState({
-            token: response.data.token,
-          });
-        }).catch(function (error){
-          console.log(error);
-        });
-  }
-
-  getStudent() {
-    
-    this.authenticate();
-
-    var self = this;
-
-    var url = 'https://laravelapidev.tk/api/students/' + this.state.studentNumber;
-    axios.get(url, {
-      headers: { 
-        "Accept": "application/prs.laravelapidev.v1+json",
-        "Authorization": "Bearer " + this.state.token
-      }
-    }).then(function(response) {
-        self.setState({
-          result: response.data
-        });
-    }).catch(function (error){
-      console.log(error);
-    });
   }
 
   handleChangeNumber(e) {
@@ -109,8 +86,23 @@ class Container extends Component {
   }
 
   handleSubmit(compName, e) {
-    this.getStudent();
-    this.setState({render:compName});
+
+    helper.authenticate(this.state.email, this.state.password)
+      .then(function(data) {
+        this.setState({
+          token: data.response.token
+        })
+      }.bind(this));
+    helper.getStudentInfo(this.state.studentNumber, this.state.token)
+      .then(function(data) {
+        this.setState({
+          studentInfo: data.studentInfo
+        });
+        this.setState({render:compName});
+      }.bind(this))
+      .catch(function(err) {
+        this.setState({render:'notfound'});
+      }.bind(this));
     e.preventDefault();
   }
 
@@ -134,7 +126,7 @@ class Container extends Component {
           </div>
         </div>
         <br/>
-
+        
         {this._renderSubComp()}
         <br />
       </div>
